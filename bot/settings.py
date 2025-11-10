@@ -1,5 +1,6 @@
 ﻿from typing import Set
 
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -7,7 +8,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "dndbot"
     LOG_LEVEL: str = "INFO"
 
-    BOT_TOKEN: str
+    TOKEN: str = Field(alias="PLAYER_BOT_TOKEN")
     ADMIN_IDS: Set[int]
 
     BACKEND_URL: str = "http://backend:8000"
