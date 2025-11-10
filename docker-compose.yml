@@ -19,9 +19,19 @@
       - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
-  bot:
+  player-bot:
     build:
       context: ./bot
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - backend
+    env_file:
+      - .env
+  admin-bot:
+    build:
+      context: ./adminbot
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
