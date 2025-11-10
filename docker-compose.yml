@@ -19,7 +19,8 @@
       - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
-  player-bot:
+
+  bot-player:
     build:
       context: ./bot
       dockerfile: Dockerfile
@@ -29,7 +30,7 @@
       - backend
     env_file:
       - .env
-  admin-bot:
+  bot-admin:
     build:
       context: ./adminbot
       dockerfile: Dockerfile
