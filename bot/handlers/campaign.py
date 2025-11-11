@@ -5,11 +5,14 @@ from aiogram import Router
 from aiogram.enums import ContentType
 from aiogram.types import User, Message
 from aiogram_dialog import DialogManager, Dialog, Window
+from aiogram_dialog.api.entities import MediaAttachment
 from aiogram_dialog.widgets.input import MessageInput
-from aiogram_dialog.widgets.kbd import Button, Cancel
+from aiogram_dialog.widgets.kbd import Button, Cancel, Row
+from aiogram_dialog.widgets.media import DynamicMedia
 from aiogram_dialog.widgets.text import Format, Const
 from httpx import AsyncClient
 
+from services.character import parse_character_data, CharacterData
 from settings import settings
 from states.campaign import CampaignDialog
 
@@ -31,17 +34,28 @@ async def char_getter(
         if response.status_code != 200:
             ret["to_import"] = True
             ret["preview_available"] = False
-        else:
-            response_data = response.json()
-            ret["to_import"] = False
-            ret["preview_available"] = True
-            ret["chardata"] = response_data["data"]
-            str_data = json.dumps(response_data["data"])
-            ret["chardata_preview"] = (
-                str_data[:PREVIEW_LENGTH] + "..."
-                if len(str_data) > PREVIEW_LENGTH
-                else str_data
+            return ret
+
+        response_data = response.json()
+        ret["to_import"] = False
+        ret["preview_available"] = True
+
+        data = response_data["data"]
+        character_data = json.loads(data["data"])
+        ret["chardata"] = character_data
+
+        info: CharacterData = parse_character_data(character_data)
+        ret["chardata_preview"] = info.preview()
+        ret["stats_preview"] = info.preview_stats()
+        avatar_url = character_data.get("avatar", {}).get("webp")
+
+        avatar = None
+        if avatar_url:
+            avatar = MediaAttachment(
+                url=avatar_url,
+                type=ContentType.PHOTO,
             )
+        ret["avatar"] = avatar
     return ret
 
 
@@ -83,14 +97,29 @@ router.include_router(
     Dialog(
         Window(
             Const("Импорт вашего персонажа", when="to_import"),
+            DynamicMedia("avatar", when="avatar"),
             Format(
-                "ну вот типо превью твоего персонажа, вот информация ес чо:\n\n{chardata_preview}",
+                "{chardata_preview}",
                 when="preview_available",
             ),
             Button(
                 Const("Загрузить .json из LSH"),
                 id="to_upload_character",
                 on_click=lambda c, b, m: m.switch_to(CampaignDialog.upload),
+            ),
+            Row(
+                Button(
+                    Const("Характеристики"),
+                    id="stats",
+                    on_click=lambda c, b, m: m.switch_to(CampaignDialog.stats),
+                ),
+                Button(
+                    Const("Инвентарь"),
+                    id="inventory",
+                    on_click=lambda c, b, m: m.switch_to(
+                        CampaignDialog.inventory
+                    ),
+                ),
             ),
             Cancel(Const("Назад")),
             getter=char_getter,
@@ -105,6 +134,16 @@ router.include_router(
                 func=on_upload,
             ),
             state=CampaignDialog.upload,
+        ),
+        Window(
+            Format("{stats_preview}"),
+            Button(
+                Const("Назад"),
+                on_click=lambda c, b, m: m.switch_to(CampaignDialog.preview),
+                id="back",
+            ),
+            getter=char_getter,
+            state=CampaignDialog.stats,
         ),
     )
 )
