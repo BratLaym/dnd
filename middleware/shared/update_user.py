@@ -1,5 +1,6 @@
 import logging
-from typing import Callable, Dict, Any, Awaitable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
@@ -13,10 +14,10 @@ logger = logging.getLogger(__name__)
 class UserMiddleware(BaseMiddleware):
     async def __call__(
         self,
-        handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
         event: TelegramObject,
-        data: Dict[str, Any],
-    ) -> Any:
+        data: dict[str, Any],
+    ) -> Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]]:
         tg_user = extract_user(event)
 
         if tg_user:

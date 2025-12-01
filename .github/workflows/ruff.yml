@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  check-formatting:
+  ruff:
     runs-on: ubuntu-latest
 
     strategy:
@@ -45,3 +45,6 @@ jobs:
           else
             echo "No formatting changes detected."
           fi
+
+      - name: Run Ruff check
+        run: ruff check .

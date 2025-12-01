@@ -1,8 +1,7 @@
 import logging
-from typing import Dict, List
+from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +52,14 @@ class CharacterData(BaseModel):
     hair: str = ""
 
     proficiency: int = 0
-    stats: Dict[str, CharacterStat] = Field(default_factory=dict)
+    stats: dict[str, CharacterStat] = Field(default_factory=dict)
 
-    skills: Dict[str, Dict] = Field(default_factory=dict)
-    prof_skills: List[str] = Field(default_factory=list)
+    skills: dict[str, dict] = Field(default_factory=dict)
+    prof_skills: list[str] = Field(default_factory=list)
 
     hp: CharacterHP = Field(default_factory=CharacterHP)
 
-    weapons: List[CharacterWeapon] = Field(default_factory=list)
+    weapons: list[CharacterWeapon] = Field(default_factory=list)
 
     traits: str = ""
     equipment: str = ""
@@ -122,16 +121,15 @@ def parse_character_data(data: dict) -> CharacterData:
             score=stat_data.get("score", 0),
             modifier=stat_data.get("modifier", 0),
         )
-    weapons = []
-    for weapon in data.get("weaponsList", []):
-        weapons.append(
-            CharacterWeapon(
-                name=weapon.get("name", {}).get("value", "Неизвестно"),
-                mod=weapon.get("mod", {}).get("value", ""),
-                damage=weapon.get("dmg", {}).get("value", ""),
-                notes=weapon.get("notes", {}).get("value", ""),
-            )
+    weapons = [
+        CharacterWeapon(
+            name=weapon.get("name", {}).get("value", "Неизвестно"),
+            mod=weapon.get("mod", {}).get("value", ""),
+            damage=weapon.get("dmg", {}).get("value", ""),
+            notes=weapon.get("notes", {}).get("value", ""),
         )
+        for weapon in data.get("weaponsList", [])
+    ]
 
     # noinspection PyArgumentList
     return CharacterData(
@@ -186,7 +184,7 @@ def parse_character_data(data: dict) -> CharacterData:
     )
 
 
-def extract_telegram_text(text_data):
+def extract_telegram_text(text_data: dict[str, Any]) -> str:
     """
     Превращает json документооборот в HTML
     """
@@ -194,29 +192,54 @@ def extract_telegram_text(text_data):
         return ""
 
     content = text_data.get("data", {}).get("content", [])
-    result = []
+    paragraphs = []
 
     for block in content:
-        if block.get("type") == "paragraph" and "content" in block:
-            paragraph_text = ""
-            for content_item in block["content"]:
-                if content_item.get("type") == "text":
-                    text = content_item.get("text", "").strip()
-                    if text:
-                        marks = content_item.get("marks", [])
-                        for mark in marks:
-                            if mark.get("type") == "bold":
-                                text = f"<b>{text}</b>"
-                            elif mark.get("type") == "italic":
-                                text = f"<i>{text}</i>"
-                            elif mark.get("type") == "underline":
-                                text = f"<u>{text}</u>"
-                        paragraph_text += text + " "
-                elif content_item.get("type") == "roller":
-                    roller_text = content_item.get("content", [{}])[0].get("text", "")
-                    paragraph_text += f"[{roller_text}] "
+        if block.get("type") == "paragraph":
+            paragraph_text = process_paragraph(block.get("content", []))
+            if paragraph_text:
+                paragraphs.append(paragraph_text)
 
-            if paragraph_text.strip():
-                result.append(paragraph_text.strip())
+    return "\n".join(paragraphs)
 
-    return "\n".join(result)
+
+def process_paragraph(items: list[dict[str, Any]]) -> str:
+    """Process all items in paragraph into HTML."""
+    result = []
+
+    for item in items:
+        item_type = item.get("type")
+
+        if item_type == "text":
+            html_text = process_text_item(item)
+            if html_text:
+                result.append(html_text)
+
+        elif item_type == "roller":
+            result.append(process_roller_item(item))
+
+    return " ".join(result).strip()
+
+
+def process_text_item(item: dict[str, Any]) -> str:
+    """Apply HTML formatting to text item."""
+    text = item.get("text", "").strip()
+    if not text:
+        return ""
+
+    for mark in item.get("marks", []):
+        mark_type = mark.get("type")
+        if mark_type == "bold":
+            text = f"<b>{text}</b>"
+        elif mark_type == "italic":
+            text = f"<i>{text}</i>"
+        elif mark_type == "underline":
+            text = f"<u>{text}</u>"
+
+    return text
+
+
+def process_roller_item(item: dict[str, Any]) -> str:
+    """Convert roller item to placeholder HTML-like form."""
+    roller_text = item.get("content", [{}])[0].get("text", "")
+    return f"[{roller_text}]"

@@ -1,20 +1,24 @@
 import asyncio
+import contextlib
 import importlib
+import inspect
 import logging
 import signal
+from collections.abc import Generator
 from contextlib import suppress
 from pathlib import Path
-import inspect
+from types import ModuleType
+from typing import Any
 
 import redis.asyncio as redis
-from aiogram import Bot, Dispatcher, BaseMiddleware
+from aiogram import BaseMiddleware, Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.base import DefaultKeyBuilder
 from aiogram.fsm.storage.redis import RedisStorage
 from aiogram_dialog import setup_dialogs
 
-from db.main import init_db, close_db
+from db.main import close_db, init_db
 from services import json
 from services.settings import settings
 
@@ -27,10 +31,10 @@ MIDDLEWARE_PACKAGE = "middleware"
 MIDDLEWARE_PATH = Path(__file__).parent / "middleware"
 
 
-def _iter_handler_modules(
-    path,
-    package,
-):
+def _iter_modules(
+    path: Path,
+    package: str,
+) -> Generator[Any, ModuleType]:
     for module in path.rglob("*.py"):
         if module.name == "__init__.py":
             continue
@@ -41,11 +45,11 @@ def _iter_handler_modules(
 
 def register_all_handlers(
     dp: Dispatcher,
-    path=HANDLERS_PATH,
-    package=HANDLERS_PACKAGE,
+    path: Path = HANDLERS_PATH,
+    package: str = HANDLERS_PACKAGE,
 ) -> None:
     routers = []
-    for _, module in _iter_handler_modules(path, package):
+    for _, module in _iter_modules(path, package):
         router = getattr(module, "router", None)
         if router is None:
             continue
@@ -59,10 +63,10 @@ def register_all_handlers(
 
 def register_all_middlewares(
     dp: Dispatcher,
-    path=MIDDLEWARE_PATH,
-    package=MIDDLEWARE_PACKAGE,
+    path: Path = MIDDLEWARE_PATH,
+    package: str = MIDDLEWARE_PACKAGE,
 ) -> None:
-    for file_name, module in _iter_handler_modules(path, package):
+    for file_name, module in _iter_modules(path, package):
         if file_name.startswith("update_"):
             target = dp.update.middleware
         elif file_name.startswith("message_"):
@@ -79,15 +83,12 @@ def register_all_middlewares(
                 break
 
         if middleware_cls is None:
-            logger.warning(f"В файле {file_name} не найден класс middleware")
+            logger.warning("В файле %s не найден класс middleware", file_name)
             continue
 
-        try:
-            instance = middleware_cls()
-            target.register(instance)
-            logger.info(f"Middleware {middleware_cls.__name__} зарегистрирован из {file_name}")
-        except Exception as e:
-            logger.error(f"Ошибка регистрации {middleware_cls.__name__}: {e}")
+        instance = middleware_cls()
+        target.register(instance)
+        logger.info("Middleware %s зарегистрирован из %s", middleware_cls.__name__, file_name)
 
 
 async def on_startup(bot: Bot) -> None: ...
@@ -96,11 +97,14 @@ async def on_startup(bot: Bot) -> None: ...
 async def on_shutdown(bot: Bot) -> None: ...
 
 
+BOT_PROPERTIES = DefaultBotProperties(parse_mode=ParseMode.HTML)
+
+
 async def run_bot(
     token: str,
     redis_db: int,
     suffix: str,
-    properties=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    properties: DefaultBotProperties = BOT_PROPERTIES,
 ) -> None:
     storage = RedisStorage(
         redis=redis.Redis(
@@ -136,10 +140,8 @@ async def run_bot(
 
 
 async def run_bot_safe(*args, **kwargs):
-    try:
+    with contextlib.suppress(asyncio.CancelledError):
         await run_bot(*args, **kwargs)
-    except asyncio.CancelledError:
-        pass
 
 
 async def main() -> None:

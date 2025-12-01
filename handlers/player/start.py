@@ -2,9 +2,9 @@ import logging
 
 from aiogram import Router
 from aiogram.filters import CommandObject, CommandStart
-from aiogram.types import Message, CallbackQuery
-from aiogram_dialog import DialogManager, Dialog, Window
-from aiogram_dialog.widgets.kbd import Column, Button
+from aiogram.types import CallbackQuery, Message
+from aiogram_dialog import Dialog, DialogManager, Window
+from aiogram_dialog.widgets.kbd import Button, Column
 from aiogram_dialog.widgets.text import Const
 
 from db.models import Invitation, User
@@ -20,27 +20,38 @@ router = Router()
 
 @router.message(CommandStart(deep_link=True))
 async def start_args(message: Message, command: CommandObject, dialog_manager: DialogManager, user: User):
+    if not command.args:
+        return
     if not is_valid_uuid(command.args):
-        logger.warning(f"User {user.id} used /start with invalid UUID: {command.args}")
+        logger.warning("User %s used /start with invalid UUID: %s", user.id, command.args)
         return
     invite = await Invitation.get_or_none(start_data=command.args)
     if not invite:
         logger.warning(
-            f"User {user.id} used /start with arguments {command.args} that weren't in the invitations",
+            "User %s used /start with arguments %s that weren't in the invitations",
+            user.id,
+            command.args,
         )
         return
     if invite.user.id != user.id:
         logger.warning(
-            f"User {user.id} used /start with arguments {command.args} that wasn't for him. It was for {invite.user.id}",
+            "User %s used /start with arguments %s that wasn't for him. It was for %s",
+            user.id,
+            command.args,
+            invite.user.id,
         )
         return
-    logger.info(f"{invite.user.id} пригласили в игру {invite.campaign.id} на роль {invite.role.name}")
+    logger.info("%s пригласили в игру %s на роль %s", invite.user.id, invite.campaign.id, invite.role.name)
     if invite.used:
         await message.reply(
-            f"Сорян, этот инвайт уже был использован.\n\nЕсли ты его использовал по ошибке, то попроси мастера пригласить тебя еще раз"
+            "Сорян, этот инвайт уже был использован.\n\n"
+            "Если ты его использовал по ошибке, то попроси мастера пригласить тебя еще раз"
         )
     logger.debug(
-        f"Такой инвайт был найден. {invite.user.id} пригласили в игру {invite.campaign.id} на роль {invite.role.name}"
+        "Такой инвайт был найден. %s пригласили в игру %s на роль %s",
+        invite.user.id,
+        invite.campaign.id,
+        invite.role.name,
     )
 
     invite.used = True
@@ -72,7 +83,8 @@ router.include_router(
             Column(
                 Button(Const("Академия"), id="academy", on_click=on_academy),
                 Button(Const("Другие игры"), id="other_games", on_click=on_other),
-                # Button(Const("Ближайшие встречи"), id="meetings", on_click=...),
+                # TODO (@pxc1984): Добавить ближайшие встречи
+                #    https://github.com/cu-tabletop/dnd/issues/11
             ),
             state=StartSimple.simple,
         )

@@ -1,6 +1,6 @@
-from tortoise import fields, models
+from tortoise import fields
 
-from .base import TimestampedModel, CharacterData, UuidModel
+from .base import CharacterData, TimestampedModel, UuidModel
 
 
 class Character(TimestampedModel, CharacterData, UuidModel):

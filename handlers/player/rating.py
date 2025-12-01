@@ -1,25 +1,14 @@
-import json
 import logging
 
-import tortoise.exceptions
 from aiogram import Router
-from aiogram.enums import ContentType
-from aiogram.filters import CommandObject, CommandStart
-from aiogram.types import Message, CallbackQuery
-from aiogram_dialog import DialogManager, Dialog, Window, ShowMode
-from aiogram_dialog.api.entities import MediaAttachment
-from aiogram_dialog.widgets.kbd import Column, Button, Cancel, ScrollingGroup, Select, Url, Back
-from aiogram_dialog.widgets.media import DynamicMedia
+from aiogram.types import CallbackQuery
+from aiogram_dialog import Dialog, DialogManager, Window
+from aiogram_dialog.widgets.kbd import Button, Cancel, ScrollingGroup, Select
 from aiogram_dialog.widgets.text import Const, Format
 
-from db.models import Invitation, User
-from services.character import CharacterData, parse_character_data
-from services.character_data import character_preview_getter
-from states.academy import Academy
+from db.models import User
 from states.player_preview import PlayerPreview
 from states.rating import AcademyRating
-from states.start_simple import StartSimple
-from states.upload_character import UploadCharacter
 
 logger = logging.getLogger(__name__)
 router = Router()

@@ -4,7 +4,7 @@ import logging
 from aiogram import Router
 from aiogram.enums import ContentType
 from aiogram.types import Message
-from aiogram_dialog import DialogManager, Dialog, Window
+from aiogram_dialog import Dialog, DialogManager, Window
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Cancel
 from aiogram_dialog.widgets.text import Const
@@ -33,11 +33,15 @@ async def upload_document(msg: Message, _: MessageInput, manager: DialogManager)
     else:
         source = await Character.get_or_none(id=source)
     if not source:
-        logger.error(f"Failed to find source for user %d", user)
+        logger.error("Failed to find source for user %d", user)
         return
     try:
         await update_char_data(source, json.loads(content.decode("utf-8")))
-    except json.JSONDecodeError or UnicodeDecodeError:
+    except UnicodeDecodeError:
+        logger.warning("Failed to unicode decode payload from user %d", msg.from_user.id)
+        await msg.answer("Это не json, проверь еще раз")
+        return
+    except json.JSONDecodeError:
         logger.warning("User %d sent incorrect json", msg.from_user.id)
         await msg.answer("Это не json, проверь еще раз")
         return

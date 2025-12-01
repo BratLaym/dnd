@@ -1,7 +1,7 @@
-from typing import Set, Any, Optional
+from typing import Any
 from zoneinfo import ZoneInfo
 
-from pydantic import computed_field, Field
+from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     TOKEN_ADMIN: str = ""
     TOKEN_PLAYER: str = ""
-    ADMIN_IDS: Set[int] = set()
+    ADMIN_IDS: set[int] = set()
 
     # ^ PostgreSQL
     DB_HOST: str = "db"
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # ^ Redis
     REDIS_HOST: str = "redis"
     REDIS_PORT: int = 6379
-    REDIS_PASSWORD: str = "secure_password"
+    REDIS_PASSWORD: str = Field(default="secure_password")
 
     # ^ Tortoise ORM
     TORTOISE_APP: str = "models"
@@ -54,7 +54,7 @@ class Settings(BaseSettings):
             },
         }
 
-    _timezone: Optional[ZoneInfo] = None
+    _timezone: ZoneInfo | None = None
 
     @computed_field
     @property
