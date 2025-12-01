@@ -34,6 +34,7 @@ async def preview_getter(dialog_manager: DialogManager, **kwargs):
         **character_preview_getter(user, data),
     }
 
+
 router.include_router(
     Dialog(
         Window(
