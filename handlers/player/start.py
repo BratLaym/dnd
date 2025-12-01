@@ -9,6 +9,7 @@ from aiogram_dialog.widgets.kbd import Column, Button
 from aiogram_dialog.widgets.text import Const
 
 from db.models import Invite, User
+from states.academy import Academy
 from states.start_simple import StartSimple
 from states.upload_character import UploadCharacter
 
@@ -48,7 +49,7 @@ async def on_academy(c: CallbackQuery, b: Button, m: DialogManager):
     if user.data is None:
         await m.start(UploadCharacter.upload, data={"source": "user"})
         return
-    await c.answer("Да, вы участвуете в академии")
+    await m.start(Academy.main)
 
 
 async def on_other(c: CallbackQuery, b: Button, m: DialogManager): ...

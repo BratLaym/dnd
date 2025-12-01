@@ -192,8 +192,5 @@ def cancel_tasks(*tasks):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=settings.LOG_LEVEL,
-        format="%(levelname)s:%(name)s:%(message)s",
-    )
+    logging.basicConfig(level=settings.LOG_LEVEL)
     asyncio.run(main())
