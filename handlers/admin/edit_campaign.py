@@ -21,13 +21,8 @@ async def get_campaign_edit_data(dialog_manager: DialogManager, **kwargs):
     logger.debug(f"Переданные данные в edit_campaign: {dialog_manager.start_data}")
     if "campaign_id" not in dialog_manager.dialog_data:
         if isinstance(dialog_manager.start_data, dict):
-
-            dialog_manager.dialog_data["campaign_id"] = dialog_manager.start_data.get(
-                "campaign_id", 0
-            )
-            dialog_manager.dialog_data["participation_id"] = (
-                dialog_manager.start_data.get("participation_id", 0)
-            )
+            dialog_manager.dialog_data["campaign_id"] = dialog_manager.start_data.get("campaign_id", 0)
+            dialog_manager.dialog_data["participation_id"] = dialog_manager.start_data.get("participation_id", 0)
 
     campaign = await Campaign.get(id=dialog_manager.dialog_data.get("campaign_id", 0))
 
@@ -41,20 +36,14 @@ async def get_campaign_edit_data(dialog_manager: DialogManager, **kwargs):
     logger.debug(f"Значение icon: {icon}")
 
     return {
-        "campaign_title": dialog_manager.dialog_data["new_data"].get(
-            "title", campaign.title
-        ),
-        "campaign_description": dialog_manager.dialog_data["new_data"].get(
-            "description", campaign.description
-        ),
+        "campaign_title": dialog_manager.dialog_data["new_data"].get("title", campaign.title),
+        "campaign_description": dialog_manager.dialog_data["new_data"].get("description", campaign.description),
         "icon": icon,
     }
 
 
 # === Кнопки ===
-async def on_field_selected(
-    mes: CallbackQuery, wid: Button, dialog_manager: DialogManager
-):
+async def on_field_selected(mes: CallbackQuery, wid: Button, dialog_manager: DialogManager):
     field_map = {
         "title": campaign_states.EditCampaignInfo.edit_title,
         "description": campaign_states.EditCampaignInfo.edit_description,
@@ -94,9 +83,7 @@ async def on_description_edited(
     await dialog_manager.switch_to(campaign_states.EditCampaignInfo.confirm)
 
 
-async def on_icon_entered(
-    mes: Message, wid: MessageInput, dialog_manager: DialogManager
-):
+async def on_icon_entered(mes: Message, wid: MessageInput, dialog_manager: DialogManager):
     if mes.photo:
         try:
             photo = mes.photo[-1]
@@ -111,13 +98,9 @@ async def on_icon_entered(
         await mes.answer("❌ Пожалуйста, отправьте изображение")
 
 
-async def on_edit_confirm(
-    mes: CallbackQuery, wid: Button, dialog_manager: DialogManager
-):
+async def on_edit_confirm(mes: CallbackQuery, wid: Button, dialog_manager: DialogManager):
     try:
-        campaign = await Campaign.get(
-            id=dialog_manager.dialog_data.get("campaign_id", 0)
-        )
+        campaign = await Campaign.get(id=dialog_manager.dialog_data.get("campaign_id", 0))
         new_data = dialog_manager.dialog_data.get("new_data", {})
 
         campaign = await Campaign.update_from_dict(campaign, new_data)

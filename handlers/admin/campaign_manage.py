@@ -19,13 +19,8 @@ logger = logging.getLogger(__name__)
 async def get_campaign_manage_data(dialog_manager: DialogManager, **kwargs):
     if "campaign_id" not in dialog_manager.dialog_data:
         if isinstance(dialog_manager.start_data, dict):
-
-            dialog_manager.dialog_data["campaign_id"] = dialog_manager.start_data.get(
-                "campaign_id", 0
-            )
-            dialog_manager.dialog_data["participation_id"] = (
-                dialog_manager.start_data.get("participation_id", 0)
-            )
+            dialog_manager.dialog_data["campaign_id"] = dialog_manager.start_data.get("campaign_id", 0)
+            dialog_manager.dialog_data["participation_id"] = dialog_manager.start_data.get("participation_id", 0)
 
     campaign_id = dialog_manager.dialog_data.get("campaign_id", 0)
 
@@ -43,9 +38,7 @@ async def get_campaign_manage_data(dialog_manager: DialogManager, **kwargs):
 
 
 # === Кнопки ===
-async def on_edit_info(
-    callback: CallbackQuery, button: Button, dialog_manager: DialogManager
-):
+async def on_edit_info(callback: CallbackQuery, button: Button, dialog_manager: DialogManager):
     campaign_id = dialog_manager.dialog_data.get("campaign_id", {})
     await dialog_manager.start(
         states.EditCampaignInfo.select_field,
@@ -53,9 +46,7 @@ async def on_edit_info(
     )
 
 
-async def on_manage_characters(
-    callback: CallbackQuery, button: Button, dialog_manager: DialogManager
-):
+async def on_manage_characters(callback: CallbackQuery, button: Button, dialog_manager: DialogManager):
     campaign_id = dialog_manager.dialog_data.get("campaign_id", {})
     await dialog_manager.start(
         states.ManageCharacters.character_menu,
@@ -63,9 +54,7 @@ async def on_manage_characters(
     )
 
 
-async def on_permissions(
-    callback: CallbackQuery, button: Button, dialog_manager: DialogManager
-):
+async def on_permissions(callback: CallbackQuery, button: Button, dialog_manager: DialogManager):
     campaign_id = dialog_manager.dialog_data.get("campaign_id", {})
     await dialog_manager.start(
         states.EditPermissions.main,
@@ -92,10 +81,7 @@ async def on_permissions(
 # === Окна ===
 campaign_manage_window = Window(
     DynamicMedia("icon"),
-    Format(
-        "🎓 Управление: {campaign_title}\n\nОписание: {campaign_description}\n"
-        "Выберите действие:"
-    ),
+    Format("🎓 Управление: {campaign_title}\n\nОписание: {campaign_description}\nВыберите действие:"),
     Group(
         Button(
             Const("🤝 Встречи"),

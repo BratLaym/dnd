@@ -60,9 +60,7 @@ async def on_description_entered(
     await dialog_manager.next()
 
 
-async def on_icon_entered(
-    mes: Message, wid: MessageInput, dialog_manager: DialogManager
-):
+async def on_icon_entered(mes: Message, wid: MessageInput, dialog_manager: DialogManager):
     if mes.photo:
         try:
             photo = mes.photo[-1]
