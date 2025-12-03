@@ -18,7 +18,7 @@ class CampaignManage(StatesGroup):
 
 class EditPermissions(StatesGroup):
     main = State()
-    select_master = State()
+    selected_master = State()
 
 
 class InviteMenu(StatesGroup):
@@ -52,6 +52,7 @@ class EditCampaignInfo(StatesGroup):
     edit_description = State()
     edit_icon = State()
     confirm = State()
+    confirm_delete = State()
 
 
 class MeetingsMenu(StatesGroup):

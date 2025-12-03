@@ -1,0 +1,131 @@
+import logging
+from uuid import UUID
+from aiogram import Router
+from aiogram_dialog import Dialog, Window, DialogManager
+from aiogram_dialog.widgets.kbd import (
+    Button,
+    SwitchTo,
+    Cancel,
+    ScrollingGroup,
+    Select,
+)
+from aiogram_dialog.widgets.text import Const, Format, Multi
+from aiogram.types import CallbackQuery
+
+from db.models.campaign import Campaign
+from db.models.participation import Participation
+from services.role import Role
+
+from . import states
+
+logger = logging.Logger(__name__)
+
+
+# === ГЕТЕРЫ ===
+async def get_permissions_data(dialog_manager: DialogManager, **kwargs):
+    if "campaign_id" not in dialog_manager.dialog_data:
+        if isinstance(dialog_manager.start_data, dict):
+            dialog_manager.dialog_data["campaign_id"] = dialog_manager.start_data.get(
+                "campaign_id", 0
+            )
+            dialog_manager.dialog_data["participation_id"] = (
+                dialog_manager.start_data.get("participation_id", 0)
+            )
+
+    campaign = await Campaign.get(id=dialog_manager.dialog_data.get("campaign_id", 0))
+
+    p_users: list[Participation] = await (
+        Participation.filter(campaign=campaign, role=Role.MASTER)
+        .prefetch_related("user")
+        .all()
+    )
+
+    return {"users": p_users, "campaign": campaign}
+
+
+async def get_user_permission_data(dialog_manager: DialogManager, **kwargs):
+    participation_id = dialog_manager.dialog_data["selected_participation_id"]
+    selected_participation: Participation = await Participation.get(id=participation_id)
+
+    return {"user": selected_participation.user}
+
+
+# === КНОПКИ ===
+async def on_user_selected(
+    callback: CallbackQuery,
+    widget: Select,
+    dialog_manager: DialogManager,
+    participation_id: UUID,
+):
+    dialog_manager.dialog_data["selected_participation_id"] = participation_id
+    await dialog_manager.switch_to(states.EditPermissions.selected_master)
+
+
+async def on_remove_user(
+    callback: CallbackQuery, button: Button, dialog_manager: DialogManager
+):
+    participation_id = dialog_manager.dialog_data["selected_participation_id"]
+    selected_participation: Participation = await Participation.get(id=participation_id)
+
+    try:
+        user = selected_participation.user
+        await selected_participation.delete()
+        await callback.answer(
+            f"✅ Пользователь {user.username} удален из группы",
+            show_alert=True,
+        )
+        await dialog_manager.switch_to(states.EditPermissions.main)
+    except Exception as e:
+        logger.error(f"Error processing delete participation: {e}")
+        await callback.answer("❌ Ошибка при удалении", show_alert=True)
+
+
+# === ОКНА ===
+permissions_main_window = Window(
+    Multi(
+        Format("🧙‍♂️ Управление мастерами: {campaign.title}\n"),
+    ),
+    ScrollingGroup(
+        Select(
+            Format("👤 {item.user.username}"),
+            id="user_permission",
+            items="users",
+            item_id_getter=lambda item: item.id,
+            on_click=on_user_selected,
+            type_factory=UUID,
+        ),
+        hide_on_single_page=True,
+        height=5,
+        id="users_permissions_list",
+    ),
+    SwitchTo(
+        Const("➕ Пригласить мастера"),
+        id="invite_user",
+        state=states.EditPermissions.main,
+    ),
+    Cancel(Const("⬅️ Назад")),
+    state=states.EditPermissions.main,
+    getter=get_permissions_data,
+)
+
+select_permission_window = Window(
+    Format("🎯 Изменение доступа\n\n" "Мастер: {user.username}\n"),
+    Button(Const("🚫 Удалить мастера"), id="remove_user", on_click=on_remove_user),
+    SwitchTo(
+        Const("⬅️ Назад к списку"),
+        id="back",
+        state=states.EditPermissions.main,
+    ),
+    state=states.EditPermissions.selected_master,
+    getter=get_user_permission_data,
+)
+
+
+# === СОЗДАНИЕ ДИАЛОГА И РОУТЕРА ===
+permissions_dialog = Dialog(
+    permissions_main_window,
+    select_permission_window,
+)
+
+router = Router()
+router.include_router(permissions_dialog)

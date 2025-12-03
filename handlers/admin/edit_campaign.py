@@ -3,15 +3,17 @@ from aiogram import Router
 from aiogram_dialog import Dialog, Window, DialogManager
 from aiogram_dialog.widgets.media import DynamicMedia
 from aiogram_dialog.api.entities import MediaAttachment, MediaId
-from aiogram.enums import ContentType, ParseMode
+from aiogram.enums import ContentType
 from aiogram_dialog.widgets.kbd import Button, Cancel, SwitchTo, Column
 from aiogram_dialog.widgets.text import Const, Format, Multi
 from aiogram_dialog.widgets.input import TextInput, MessageInput, ManagedTextInput
 from aiogram.types import CallbackQuery, Message
 
 from db.models.campaign import Campaign
+from db.models.participation import Participation
+from services.role import Role
 
-from . import states as campaign_states
+from . import states
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,9 @@ async def get_campaign_edit_data(dialog_manager: DialogManager, **kwargs):
             dialog_manager.dialog_data["participation_id"] = dialog_manager.start_data.get("participation_id", 0)
 
     campaign = await Campaign.get(id=dialog_manager.dialog_data.get("campaign_id", 0))
+    participation = await Participation.get(
+        id=dialog_manager.dialog_data.get("participation_id", 0)
+    )
 
     if "new_data" not in dialog_manager.dialog_data:
         dialog_manager.dialog_data["new_data"] = dict()
@@ -39,15 +44,17 @@ async def get_campaign_edit_data(dialog_manager: DialogManager, **kwargs):
         "campaign_title": dialog_manager.dialog_data["new_data"].get("title", campaign.title),
         "campaign_description": dialog_manager.dialog_data["new_data"].get("description", campaign.description),
         "icon": icon,
+        "is_owner": participation.role == Role.OWNER,
     }
 
 
 # === Кнопки ===
 async def on_field_selected(mes: CallbackQuery, wid: Button, dialog_manager: DialogManager):
     field_map = {
-        "title": campaign_states.EditCampaignInfo.edit_title,
-        "description": campaign_states.EditCampaignInfo.edit_description,
-        "icon": campaign_states.EditCampaignInfo.edit_icon,
+        "title": states.EditCampaignInfo.edit_title,
+        "description": states.EditCampaignInfo.edit_description,
+        "icon": states.EditCampaignInfo.edit_icon,
+        "delete": states.EditCampaignInfo.confirm_delete,
     }
     if wid.widget_id in field_map:
         await dialog_manager.switch_to(field_map[wid.widget_id])
@@ -65,7 +72,7 @@ async def on_title_edited(
 
     dialog_manager.dialog_data["new_data"]["title"] = text
 
-    await dialog_manager.switch_to(campaign_states.EditCampaignInfo.confirm)
+    await dialog_manager.switch_to(states.EditCampaignInfo.confirm)
 
 
 async def on_description_edited(
@@ -80,7 +87,7 @@ async def on_description_edited(
 
     dialog_manager.dialog_data["new_data"]["description"] = text
 
-    await dialog_manager.switch_to(campaign_states.EditCampaignInfo.confirm)
+    await dialog_manager.switch_to(states.EditCampaignInfo.confirm)
 
 
 async def on_icon_entered(mes: Message, wid: MessageInput, dialog_manager: DialogManager):
@@ -90,7 +97,7 @@ async def on_icon_entered(mes: Message, wid: MessageInput, dialog_manager: Dialo
 
             dialog_manager.dialog_data["new_data"]["icon"] = photo.file_id
 
-            await dialog_manager.switch_to(campaign_states.EditCampaignInfo.confirm)
+            await dialog_manager.switch_to(states.EditCampaignInfo.confirm)
         except Exception as e:
             logger.error(f"Error processing photo: {e}")
             await mes.answer("❌ Ошибка при обработке изображения")
@@ -115,6 +122,26 @@ async def on_edit_confirm(mes: CallbackQuery, wid: Button, dialog_manager: Dialo
         await mes.answer("❌ Ошибка при обновлении", show_alert=True)
 
 
+async def on_remove_campaign(
+    callback: CallbackQuery, button: Button, dialog_manager: DialogManager
+):
+    campaign: Campaign = await Campaign.get(
+        id=dialog_manager.dialog_data["campaign_id"]
+    )
+
+    try:
+        title = campaign.title
+        await campaign.delete()
+        await callback.answer(
+            f"✅ Кампания {title} удалена",
+            show_alert=True,
+        )
+        await dialog_manager.switch_to(states.EditPermissions.main)
+    except Exception as e:
+        logger.error(f"Error processing delete campaign: {e}")
+        await callback.answer("❌ Ошибка при удалении", show_alert=True)
+
+
 # === Окна ===
 select_field_window = Window(
     DynamicMedia("icon"),
@@ -131,11 +158,16 @@ select_field_window = Window(
             on_click=on_field_selected,
         ),
         Button(Const("🎨 Иконка"), id="icon", on_click=on_field_selected),
+        Button(
+            Const("🗑️ Удаление кампании"),
+            id="delete",
+            on_click=on_field_selected,
+            when="is_owner",
+        ),
     ),
     Cancel(Const("⬅️ Назад")),
-    state=campaign_states.EditCampaignInfo.select_field,
+    state=states.EditCampaignInfo.select_field,
     getter=get_campaign_edit_data,
-    # parse_mode=ParseMode.MARKDOWN_V2,
 )
 
 edit_title_window = Window(
@@ -144,9 +176,9 @@ edit_title_window = Window(
     SwitchTo(
         Const("⬅️ Назад"),
         id="back_from_title",
-        state=campaign_states.EditCampaignInfo.select_field,
+        state=states.EditCampaignInfo.select_field,
     ),
-    state=campaign_states.EditCampaignInfo.edit_title,
+    state=states.EditCampaignInfo.edit_title,
 )
 
 edit_description_window = Window(
@@ -158,9 +190,9 @@ edit_description_window = Window(
     SwitchTo(
         Const("⬅️ Назад"),
         id="back_from_description",
-        state=campaign_states.EditCampaignInfo.select_field,
+        state=states.EditCampaignInfo.select_field,
     ),
-    state=campaign_states.EditCampaignInfo.edit_description,
+    state=states.EditCampaignInfo.edit_description,
 )
 
 edit_icon_window = Window(
@@ -169,9 +201,9 @@ edit_icon_window = Window(
     SwitchTo(
         Const("⬅️ Назад"),
         id="back_from_icon",
-        state=campaign_states.EditCampaignInfo.select_field,
+        state=states.EditCampaignInfo.select_field,
     ),
-    state=campaign_states.EditCampaignInfo.edit_icon,
+    state=states.EditCampaignInfo.edit_icon,
 )
 
 confirm_edit_window = Window(
@@ -188,13 +220,25 @@ confirm_edit_window = Window(
     SwitchTo(
         Const("⬅️ Назад"),
         id="back_from_confirm",
-        state=campaign_states.EditCampaignInfo.select_field,
+        state=states.EditCampaignInfo.select_field,
     ),
     Cancel(Const("❌ Отмена")),
-    state=campaign_states.EditCampaignInfo.confirm,
+    state=states.EditCampaignInfo.confirm,
     getter=get_campaign_edit_data,
 )
-
+confirm_delete_window = Window(
+    Format("🎯 Вы точно хотите удалить {campaign_title}\n ЭТО ДЕЙСТВИЕ НЕ ОТМЕНИТЬ"),
+    Button(
+        Const("🚫 Удалить кампанию"), id="remove_campaign", on_click=on_remove_campaign
+    ),
+    SwitchTo(
+        Const("⬅️ Назад"),
+        id="back",
+        state=states.EditCampaignInfo.select_field,
+    ),
+    state=states.EditCampaignInfo.confirm_delete,
+    getter=get_campaign_edit_data,
+)
 # === Создание диалога и роутера ===
 dialog = Dialog(
     select_field_window,
@@ -202,6 +246,7 @@ dialog = Dialog(
     edit_description_window,
     edit_icon_window,
     confirm_edit_window,
+    confirm_delete_window,
 )
 router = Router()
 router.include_router(dialog)

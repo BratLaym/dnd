@@ -9,6 +9,8 @@ from aiogram_dialog.widgets.text import Const, Format
 from aiogram.types import CallbackQuery
 
 from db.models.campaign import Campaign
+from db.models.participation import Participation
+from services.role import Role
 
 from . import states
 
@@ -23,8 +25,10 @@ async def get_campaign_manage_data(dialog_manager: DialogManager, **kwargs):
             dialog_manager.dialog_data["participation_id"] = dialog_manager.start_data.get("participation_id", 0)
 
     campaign_id = dialog_manager.dialog_data.get("campaign_id", 0)
+    participation_id = dialog_manager.dialog_data.get("participation_id", 0)
 
     campaign: Campaign = await Campaign.get(id=campaign_id)
+    participation: Participation = await Participation.get(id=participation_id)
 
     icon = None
     if file_id := campaign.icon:
@@ -34,6 +38,7 @@ async def get_campaign_manage_data(dialog_manager: DialogManager, **kwargs):
         "campaign_title": campaign.title,
         "campaign_description": campaign.description or "Описание отсутствует",
         "icon": icon,
+        "is_owner": participation.role == Role.OWNER,
     }
 
 
@@ -88,7 +93,7 @@ campaign_manage_window = Window(
             id="meetings",
         ),
         Button(
-            Const("✏️ Редактировать информацию"),
+            Const("✏️ Управление кампанией"),
             id="edit_info",
             on_click=on_edit_info,
         ),
@@ -101,6 +106,7 @@ campaign_manage_window = Window(
             Const("🧙‍♂️ Управление мастерами"),
             id="permissions",
             on_click=on_permissions,
+            when="is_owner",
         ),
         width=1,
     ),
