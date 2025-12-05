@@ -24,6 +24,7 @@ class EditPermissions(StatesGroup):
 class InviteMenu(StatesGroup):
     main = State()
     view_qr = State()
+    invite = State()
 
 
 class ManageCharacters(StatesGroup):

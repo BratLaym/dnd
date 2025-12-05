@@ -1,6 +1,7 @@
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from aiogram import Bot
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -11,7 +12,9 @@ class Settings(BaseSettings):
     TZ: str = "Europe/Moscow"
 
     TOKEN_ADMIN: str = ""
+    ADMIN_BOT: Bot | None = None
     TOKEN_PLAYER: str = ""
+    PLAYER_BOT: Bot | None = None
     ADMIN_IDS: set[int] = set()
 
     # ^ PostgreSQL

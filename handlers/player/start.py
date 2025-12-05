@@ -25,7 +25,7 @@ async def start_args(message: Message, command: CommandObject, dialog_manager: D
     if not is_valid_uuid(command.args):
         logger.warning("User %s used /start with invalid UUID: %s", user.id, command.args)
         return
-    invite = await Invitation.get_or_none(start_data=command.args)
+    invite = await Invitation.get_or_none(start_data=command.args).prefetch_related("user", "campaign")
     if not invite:
         logger.warning(
             "User %s used /start with arguments %s that weren't in the invitations",
@@ -33,7 +33,10 @@ async def start_args(message: Message, command: CommandObject, dialog_manager: D
             command.args,
         )
         return
-    if invite.user.id != user.id:
+    if invite.user is None:
+        invite.user = user
+        await invite.save()
+    elif invite.user.id != user.id:
         logger.warning(
             "User %s used /start with arguments %s that wasn't for him. It was for %s",
             user.id,
@@ -47,6 +50,7 @@ async def start_args(message: Message, command: CommandObject, dialog_manager: D
             "Сорян, этот инвайт уже был использован.\n\n"
             "Если ты его использовал по ошибке, то попроси мастера пригласить тебя еще раз"
         )
+        return
     logger.debug(
         "Такой инвайт был найден. %s пригласили в игру %s на роль %s",
         invite.user.id,

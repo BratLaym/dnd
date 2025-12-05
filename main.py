@@ -124,6 +124,11 @@ async def run_bot(
     )
     dp = Dispatcher(storage=storage)
 
+    if token == settings.TOKEN_ADMIN:
+        settings.ADMIN_BOT = bot
+    else:
+        settings.PLAYER_BOT = bot
+
     register_all_middlewares(dp, path=MIDDLEWARE_PATH / suffix, package=MIDDLEWARE_PACKAGE + "." + suffix)
     register_all_middlewares(dp, path=MIDDLEWARE_PATH / "shared", package=MIDDLEWARE_PACKAGE + "." + "shared")
     register_all_handlers(dp, path=HANDLERS_PATH / suffix, package=HANDLERS_PACKAGE + "." + suffix)

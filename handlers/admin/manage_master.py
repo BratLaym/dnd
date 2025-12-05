@@ -17,6 +17,7 @@ from tortoise.exceptions import OperationalError
 from db.models.campaign import Campaign
 from db.models.participation import Participation
 from services.role import Role
+from services.settings import settings
 
 from . import states
 
@@ -40,9 +41,10 @@ async def get_permissions_data(dialog_manager: DialogManager, **kwargs):
 
 async def get_user_permission_data(dialog_manager: DialogManager, **kwargs):
     participation_id = dialog_manager.dialog_data["selected_participation_id"]
-    selected_participation: Participation = await Participation.get(id=participation_id)
+    selected_participation = await Participation.get(id=participation_id).prefetch_related("user")
+    user = selected_participation.user
 
-    return {"user": selected_participation.user}
+    return {"username": user.username}
 
 
 # === КНОПКИ ===
@@ -58,19 +60,33 @@ async def on_user_selected(
 
 async def on_remove_user(callback: CallbackQuery, button: Button, dialog_manager: DialogManager):
     participation_id = dialog_manager.dialog_data["selected_participation_id"]
-    selected_participation: Participation = await Participation.get(id=participation_id)
+    selected_participation = await Participation.get(id=participation_id).prefetch_related("user", "campaign")
 
     try:
         user = selected_participation.user
+        campaign = selected_participation.campaign
+
         await selected_participation.delete()
         await callback.answer(
             f"✅ Пользователь {user.username} удален из группы",
             show_alert=True,
         )
+
+        if settings.ADMIN_BOT is None:
+            msg = "bot is not specified"
+            raise TypeError(msg)
+        await settings.ADMIN_BOT.send_message(user.id, f"👋 Вас удалили из {campaign.title}")
+
         await dialog_manager.switch_to(states.EditPermissions.main)
     except OperationalError as e:
         logger.exception("Error processing delete participation", exc_info=e)
         await callback.answer("❌ Ошибка при удалении", show_alert=True)
+
+
+async def on_add_master(mes: CallbackQuery, wid: Button, dialog_manager: DialogManager):
+    await dialog_manager.start(
+        states.InviteMenu.main, data={"campaign_id": dialog_manager.dialog_data["campaign_id"], "role": Role.MASTER}
+    )
 
 
 # === Окна ===
@@ -91,10 +107,10 @@ permissions_main_window = Window(
         height=5,
         id="users_permissions_list",
     ),
-    SwitchTo(
+    Button(
         Const("➕ Пригласить мастера"),
         id="invite_user",
-        state=states.EditPermissions.main,
+        on_click=on_add_master,
     ),
     Cancel(Const("⬅️ Назад")),
     state=states.EditPermissions.main,
@@ -102,7 +118,7 @@ permissions_main_window = Window(
 )
 
 select_permission_window = Window(
-    Format("🎯 Изменение доступа\n\nМастер: {user.username}\n"),
+    Format("🎯 Изменение доступа\n\nМастер: {username}\n"),
     Button(Const("🚫 Удалить мастера"), id="remove_user", on_click=on_remove_user),
     SwitchTo(
         Const("⬅️ Назад к списку"),
