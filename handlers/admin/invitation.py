@@ -45,7 +45,7 @@ async def get_link(dialog_manager: DialogManager, **_):
         dialog_manager.dialog_data["link"] = link
         dialog_manager.dialog_data["invite_id"] = invite.id
 
-    return {"link": dialog_manager.dialog_data["link"]}
+    return {"link": link}
 
 
 async def get_qr(dialog_manager: DialogManager, **_):
