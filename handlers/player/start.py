@@ -46,6 +46,8 @@ async def start_args(message: Message, command: CommandObject, dialog_manager: D
         )
         return
 
+    await dialog_manager.reset_stack()
+
     if invite.user is None:
         invite.user = user
         await invite.save()
