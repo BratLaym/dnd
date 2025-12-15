@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 async def get_link(dialog_manager: DialogManager, **_):
     created_by: User = dialog_manager.middleware_data["user"]
 
+    link = dialog_manager.dialog_data.get("link")
     if "link" not in dialog_manager.dialog_data and isinstance(dialog_manager.start_data, dict):
         campaign_id = dialog_manager.start_data.get("campaign_id", 0)
         role = dialog_manager.start_data.get("role", Role.PLAYER)
@@ -45,7 +46,7 @@ async def get_link(dialog_manager: DialogManager, **_):
         dialog_manager.dialog_data["link"] = link
         dialog_manager.dialog_data["invite_id"] = invite.id
 
-    return {"link": dialog_manager.dialog_data["link"]}
+    return {"link": link}
 
 
 async def get_qr(dialog_manager: DialogManager, **_):

@@ -18,9 +18,11 @@ from aiogram.fsm.storage.base import DefaultKeyBuilder
 from aiogram.fsm.storage.redis import RedisStorage
 from aiogram_dialog import setup_dialogs
 
-from db.main import close_db, init_db
+from db.minio import init_minio, test_minio
+from db.postgres import close_db, init_db, test_db
 from services.settings import settings
 from utils import json
+from utils.minio import MinioMessageManager
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +134,7 @@ async def run_bot(
     register_all_middlewares(dp, path=MIDDLEWARE_PATH / suffix, package=MIDDLEWARE_PACKAGE + "." + suffix)
     register_all_middlewares(dp, path=MIDDLEWARE_PATH / "shared", package=MIDDLEWARE_PACKAGE + "." + "shared")
     register_all_handlers(dp, path=HANDLERS_PATH / suffix, package=HANDLERS_PACKAGE + "." + suffix)
-    setup_dialogs(dp)
+    setup_dialogs(dp, message_manager=MinioMessageManager())
 
     dp.startup.register(on_startup)
     dp.shutdown.register(on_shutdown)
@@ -153,6 +155,11 @@ async def main() -> None:
     logger.info("Запущен проект: %s", settings.PROJECT_NAME)
 
     await init_db()
+    await init_minio()
+
+    await test_db()
+    await test_minio()
+
     # стартуем ботов как background задачи
     task_player = asyncio.create_task(
         run_bot_safe(
@@ -200,4 +207,5 @@ def cancel_tasks(*tasks):
 
 if __name__ == "__main__":
     logging.basicConfig(level=settings.LOG_LEVEL)
+    logger.info("Using LOG_LEVEL: %s", settings.LOG_LEVEL)
     asyncio.run(main())

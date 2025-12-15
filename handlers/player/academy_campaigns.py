@@ -5,9 +5,11 @@ from aiogram import Router
 from aiogram.types import CallbackQuery
 from aiogram_dialog import Dialog, DialogManager, Window
 from aiogram_dialog.widgets.kbd import Button, Cancel, ScrollingGroup, Select
+from aiogram_dialog.widgets.media import DynamicMedia
 from aiogram_dialog.widgets.text import Const, Format
 
-from db.models import Campaign, Participation
+from db.models import Participation
+from services.campaigns import campaign_getter
 from states.academy_campaigns import AcademyCampaignPreview, AcademyCampaigns
 from utils.redirect import redirect
 
@@ -28,14 +30,6 @@ async def on_campaign(c: CallbackQuery, b: Button, m: DialogManager, participati
         AcademyCampaignPreview.preview,
         data={"campaign_id": participation.campaign.id, "participation_id": participation.id},
     )
-
-
-async def campaign_getter(dialog_manager: DialogManager, **kwargs):
-    campaign = await Campaign.get(id=dialog_manager.start_data["campaign_id"])
-    return {
-        "title": campaign.title,
-        "description": campaign.description,
-    }
 
 
 router.include_router(
@@ -66,8 +60,8 @@ router.include_router(
 router.include_router(
     Dialog(
         Window(
-            Const("Инфа о кампании"),
-            Format("{title}\n{description}"),
+            Format("Информация о кампании: {title}\n\nОписание: {description}\n\nВыберите действие:"),
+            DynamicMedia("icon"),
             Cancel(Const("Назад")),
             getter=campaign_getter,
             state=AcademyCampaignPreview.preview,
