@@ -60,21 +60,17 @@ async def on_description_entered(
     text: str,
 ):
     if len(text) > settings.MAX_DESCRIPTION_LEN:
-<<<<<<< HEAD
-        mes.answer("Максимум 1023 символа, можно пропустить")
-=======
         await mes.answer("Максимум 1023 символа, можно пропустить")
->>>>>>> upstream/master
         return
     dialog_manager.dialog_data["description"] = text
     await dialog_manager.next()
 
 
 async def on_icon_entered(mes: Message, wid: MessageInput, dialog_manager: DialogManager):
-    if mes.photo:
+    if mes.photo and mes.bot:
         photo = mes.photo[-1]
         file = await mes.bot.get_file(photo.file_id)
-        bin_stream: BinaryIO = await mes.bot.download_file(file.file_path)
+        bin_stream: BinaryIO | None = await mes.bot.download_file(file.file_path or "")
 
         object_id = uuid.uuid4()
         settings.minio.put_object(
@@ -103,7 +99,7 @@ async def on_confirm(mes: CallbackQuery, button: Button, dialog_manager: DialogM
         new_campaign: Campaign = await Campaign.create(
             title=campaign_data.get("title", ""),
             description=campaign_data.get("description", ""),
-            icon=campaign_data.get("icon", ""),
+            icon=campaign_data.get("icon"),
             verified=verified,
         )
 

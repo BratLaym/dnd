@@ -87,9 +87,6 @@ class CharacterData(BaseModel):
             f"<b>Мировоззрение:</b> {self.alignment}"
         )
 
-    def light_preview(self) -> str:
-        return f"<b>Имя:</b> {self.name}\n"
-
     def preview_stats(self) -> str:
         return "\n".join(
             [f"<b>{STATS_CONVERSION[key]}:</b> {value.score}({value.modifier})" for key, value in self.stats.items()]
@@ -105,8 +102,8 @@ STATS_CONVERSION = {
     "cha": "Харизма",
 }
 
-
 def parse_character_data(data: dict) -> CharacterData:
+
     """
     Превращает json персонажа Long Story Short в адекватный Pydantic объект
     """
