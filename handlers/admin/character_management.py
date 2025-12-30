@@ -30,7 +30,7 @@ from services.character_data import character_preview_getter
 from services.settings import settings
 from utils.character import CharacterData as CharData
 from utils.character import parse_character_data
-from utils.role import Role
+from utils.enums import Role
 
 from . import states
 
@@ -151,8 +151,13 @@ async def on_quick_rating_change(callback: CallbackQuery, widget: Button, dialog
 
         new_rating = user.rating + change
 
-        new_rating = max(new_rating, 0)
-        new_rating = min(new_rating, settings.MAX_RATING)
+        if new_rating < 0:
+            new_rating = 0
+            callback.answer("⚠️ Рейтинг не может быть меньше 0")
+
+        if new_rating > settings.MAX_RATING:
+            new_rating = settings.MAX_RATING
+            callback.answer(f"⚠️ Рейтинг не может быть больше {settings.MAX_RATING}")
 
         user.rating = new_rating
         await user.save()
@@ -172,7 +177,16 @@ async def on_rating_input(message: Message, widget: ManagedTextInput, dialog_man
 
         user = await User.get(id=character_id)
 
-        rating = min(max(0, rating), settings.MAX_RATING)
+        if rating < 0:
+            rating = 0
+            message.answer("⚠️ Рейтинг не может быть меньше 0")
+
+        if rating > settings.MAX_RATING:
+            rating = settings.MAX_RATING
+            message.answer(f"⚠️ Рейтинг не может быть больше {settings.MAX_RATING}")
+
+        if abs(rating - user.rating) > settings.MAX_DELTA_RATING:
+            message.answer("⚠️ За раз не более 200")
 
         user.rating = rating
         await user.save()

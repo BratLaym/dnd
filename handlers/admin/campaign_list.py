@@ -5,10 +5,11 @@ from uuid import UUID
 from aiogram import Router
 from aiogram.types import CallbackQuery
 from aiogram_dialog import Dialog, DialogManager, Window
-from aiogram_dialog.widgets.kbd import Button, ScrollingGroup, Select, Start
+from aiogram_dialog.widgets.kbd import Button, Row, ScrollingGroup, Select
 from aiogram_dialog.widgets.text import Const, Format
 
 from db.models.participation import Participation
+from utils.enums import Mode
 from utils.redirect import redirect
 
 from . import states
@@ -22,8 +23,18 @@ logger = logging.getLogger(__name__)
 # === Гетеры ===
 async def get_campaigns_data(dialog_manager: DialogManager, **kwargs):
     user: User = dialog_manager.middleware_data["user"]
-    campaigns = await Participation.filter(user=user).prefetch_related("campaign").all()
-    return {"campaigns": campaigns, "is_admin": user.admin, "has_campaigns": len(campaigns) > 0}
+    if "mode" not in dialog_manager.dialog_data:
+        dialog_manager.dialog_data["mode"] = Mode.ACADEMY if user.admin else Mode.OTHER_CAMPAIGNS
+    mode = dialog_manager.dialog_data["mode"]
+
+    campaigns = await Participation.filter(user=user, verified=mode == Mode.ACADEMY).prefetch_related("campaign").all()
+    return {
+        "campaigns": campaigns,
+        "is_admin": user.admin,
+        "has_campaigns": len(campaigns) > 0,
+        "mode": mode,
+        "verified": mode == Mode.ACADEMY,
+    }
 
 
 # === Кнопки ===
@@ -43,9 +54,17 @@ async def on_campaign_selected(
     )
 
 
+async def on_switch_mode(msg: CallbackQuery, wid: Button, manage: DialogManager):
+    if manage.dialog_data["mode"] == Mode.ACADEMY:
+        manage.dialog_data["mode"] = Mode.OTHER_CAMPAIGNS
+    else:
+        manage.dialog_data["mode"] = Mode.ACADEMY
+    await manage.show()
+
+
 # === Окна ===
 campaign_list_window = Window(
-    Const("🏰 Ваши кампании\n\n"),
+    Format("🏰 Ваши кампании  ({mode})\n\n"),
     Const(
         "У вас пока нет доступных кампаний",
         when=lambda data, widget, dialog_manager: not data.get("has_campaigns", False),
@@ -64,16 +83,20 @@ campaign_list_window = Window(
         height=5,
         id="campaigns",
     ),
-    Start(
-        Const("➕ Создать новую"),
-        id="create_campaign",
-        state=states.CreateCampaign.select_title,
-    ),
-    Button(
-        Const("➕ Создать новую (Для академии)"),
-        id="create_verified_campaign",
-        on_click=lambda c, b, d: d.start(states.CreateCampaign.select_title, data={"verified": True}),
-        when="is_admin",
+    Row(
+        Button(
+            Const("➕ Создать новую"),
+            id="create_verified_campaign",
+            on_click=lambda c, b, d: d.start(
+                states.CreateCampaign.select_title, data={"verified": d.dialog_data["verified"]}
+            ),
+        ),
+        Button(
+            Const("↔️ Переключить"),
+            id="create_verified_campaign",
+            on_click=on_switch_mode,
+            when="is_admin",
+        ),
     ),
     state=states.CampaignList.main,
     getter=get_campaigns_data,
