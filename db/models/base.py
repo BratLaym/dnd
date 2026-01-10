@@ -16,10 +16,3 @@ class TimestampedModel(models.Model):
 
     class Meta:
         abstract = True
-
-
-class CharacterData(models.Model):
-    data = fields.JSONField(null=True)
-
-    class Meta:
-        abstract = True
