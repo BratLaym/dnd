@@ -17,7 +17,7 @@ from db.models.user import User
 from services.invitation import handle_accept_invitation, invitation_getter
 from services.settings import settings
 from utils.invitation import generate_link, generate_qr
-from utils.role import Role
+from utils.enums import Role
 
 from . import states
 
